@@ -1,0 +1,5 @@
+*.sw[poe]
+*.log
+*.pcap*
+.DS_Store
+
