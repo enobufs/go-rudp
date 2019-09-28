@@ -28,5 +28,6 @@ func (c *Channel) Write(data []byte) (int, error) {
 
 // Close ...
 func (c *Channel) Close() error {
+	c.log.Debugf("closing channel(%d)", c.ID())
 	return c.stream.Close()
 }

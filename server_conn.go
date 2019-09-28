@@ -19,7 +19,7 @@ func newServerConn(conn net.PacketConn, remAddr net.Addr, log logging.LeveledLog
 	return &serverConn{
 		conn:    conn,
 		remAddr: remAddr,
-		readCh:  make(chan []byte),
+		readCh:  make(chan []byte, 1024),
 		log:     log,
 	}
 }
@@ -70,5 +70,7 @@ func (c *serverConn) SetWriteDeadline(t time.Time) error {
 
 func (c *serverConn) handleInbound(data []byte) {
 	c.log.Debugf("serverConn: handleInboud: %d bytes", len(data))
-	c.readCh <- data // possible race with Close()
+	buf := make([]byte, len(data))
+	copy(buf, data)
+	c.readCh <- buf // possible race with Close()
 }

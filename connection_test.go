@@ -3,108 +3,195 @@ package rudp
 import (
 	"net"
 	"testing"
+	"time"
 
 	"github.com/pion/logging"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestConnectionSimple(t *testing.T) {
-	loggerFactory := logging.NewDefaultLoggerFactory()
-	log := loggerFactory.NewLogger("test")
+type echoServerConfig struct {
+	t             *testing.T
+	channelID     uint16
+	loggerFactory logging.LoggerFactory
+	log           logging.LeveledLogger
+}
+
+type echoClientConfig struct {
+	t             *testing.T
+	id            int
+	channelID     uint16
+	loggerFactory logging.LoggerFactory
+	log           logging.LeveledLogger
+}
+
+func echoServer(cfg *echoServerConfig) (chan<- struct{}, <-chan struct{}) {
+	shutDownCh := make(chan struct{})
+	doneCh := make(chan struct{})
+
+	// make sure the server is already listening when this function returns
 	l, err := Listen(&ListenConfig{
 		Network:       "udp4",
-		LoggerFactory: loggerFactory,
+		LoggerFactory: cfg.loggerFactory,
 	})
-	assert.NoError(t, err, "should succeed")
-	defer func() {
-		err = l.Close()
-		assert.NoError(t, err, "should succeed")
-	}()
-
-	channelID := uint16(123)
-
-	serverDoneCh := make(chan struct{})
-	clientDoneCh := make(chan struct{})
-	msgs := []string{
-		"Hello",
-		"Good to see you",
-		"Bye",
-	}
+	assert.NoError(cfg.t, err, "should succeed")
 
 	go func() {
-		s, err2 := l.Accept()
-		log.Debugf("l.Accept() returned: %v", err2)
-		if !assert.NoError(t, err2, "should succeed") {
-			close(serverDoneCh)
-			return
-		}
-		defer s.Close()
+		defer close(doneCh)
 
-		serverCh, err2 := s.AcceptChannel()
-		if !assert.NoError(t, err2, "should succeed") {
-			return
-		}
-		defer serverCh.Close()
-
-		assert.Equal(t, channelID, serverCh.ID(), "should match")
-
-		buf := make([]byte, 64*1024)
-		var nReceived int
 		for {
-			n, err2 := serverCh.Read(buf)
-			if err2 != nil {
+			s, err := l.Accept()
+			if err != nil {
 				break
 			}
 
-			msg := string(buf[:n])
-			log.Debugf("server received %s", msg)
-			assert.Equal(t, msgs[nReceived], msg, "should match")
-			nReceived++
+			go func() {
+				defer l.Close()
+				defer s.Close()
 
-			n, err2 = serverCh.Write([]byte(msg))
-			assert.NoError(t, err2, "should succeed")
-			assert.Equal(t, len(msg), n, "should match")
+				// assume 1 channel per client
+				serverCh, err := s.AcceptChannel()
+				if !assert.NoError(cfg.t, err, "should succeed") {
+					return
+				}
+
+				go func() {
+					<-shutDownCh
+					serverCh.Close()
+				}()
+
+				assert.Equal(cfg.t, cfg.channelID, serverCh.ID(), "should match")
+
+				buf := make([]byte, 64*1024)
+				var nReceived int
+				for {
+					n, err := serverCh.Read(buf)
+					if err != nil {
+						break
+					}
+
+					msg := string(buf[:n])
+					cfg.log.Debugf("server received %s", msg)
+					nReceived++
+
+					n, err = serverCh.Write([]byte(msg))
+					assert.NoError(cfg.t, err, "should succeed")
+					assert.Equal(cfg.t, len(msg), n, "should match")
+				}
+			}()
 		}
 
-		log.Debug("server done")
-		close(serverDoneCh)
+		cfg.log.Debug("server done")
 	}()
 
-	c, err := Dial(&DialConfig{
-		Network: "udp4",
-		RemoteAddr: &net.UDPAddr{
-			IP:   net.ParseIP("127.0.0.1"),
-			Port: defaultServerPort,
-		},
-		LoggerFactory: loggerFactory,
-	})
-	assert.NoError(t, err, "should succeed")
+	return shutDownCh, doneCh
+}
+
+func echoClient(cfg *echoClientConfig) <-chan struct{} {
+	doneCh := make(chan struct{})
 
 	go func() {
-		clientCh, err2 := c.OpenChannel(channelID)
-		if !assert.NoError(t, err2, "should succeed") {
-			return
+		defer close(doneCh)
+		c, err := Dial(&DialConfig{
+			Network: "udp4",
+			RemoteAddr: &net.UDPAddr{
+				IP:   net.ParseIP("127.0.0.1"),
+				Port: defaultServerPort,
+			},
+			LoggerFactory: cfg.loggerFactory,
+		})
+		assert.NoError(cfg.t, err, "should succeed")
+		defer func() {
+			err := c.Close()
+			assert.NoError(cfg.t, err, "should succeed")
+		}()
+
+		clientCh, err := c.OpenChannel(cfg.channelID)
+		if !assert.NoError(cfg.t, err, "should succeed") {
+			cfg.t.FailNow()
+		}
+		defer func() {
+			clientCh.Close()
+			time.Sleep(200 * time.Millisecond)
+		}()
+
+		msgs := []string{
+			"Hello 1",
+			"Hello 2",
+			"Hello 3",
+			"Hello 4",
 		}
 
 		buf := make([]byte, 64*1024)
 		for i := 0; i < len(msgs); i++ {
 			msg := msgs[i]
-			log.Debugf("client sending: %s", msg)
+			cfg.log.Debugf("client(%d) sending: %s", cfg.id, msg)
 			clientCh.Write([]byte(msg))
-			n, err2 := clientCh.Read(buf)
-			assert.NoError(t, err2, "should succeed")
-			assert.Equal(t, msg, string(buf[:n]), "should match")
-			log.Debugf("client received: %s", string(buf[:n]))
+			n, err := clientCh.Read(buf)
+			if err != nil {
+				continue
+			}
+			assert.Equal(cfg.t, msg, string(buf[:n]), "should match")
+			cfg.log.Debugf("client(%d) received: %s", cfg.id, string(buf[:n]))
 		}
 
-		log.Debug("closing client channel")
-		err2 = clientCh.Close()
-		assert.NoError(t, err2, "should succeed")
-
-		log.Debug("client done")
-		close(clientDoneCh)
+		cfg.log.Debugf("client(%d) done", cfg.id)
 	}()
 
+	return doneCh
+}
+
+func TestConnectionEchoSingle(t *testing.T) {
+	loggerFactory := logging.NewDefaultLoggerFactory()
+	log := loggerFactory.NewLogger("test")
+	channelID := uint16(123)
+
+	shutDownCh, serverDoneCh := echoServer(&echoServerConfig{
+		t:             t,
+		channelID:     channelID,
+		loggerFactory: loggerFactory,
+		log:           log,
+	})
+
+	clientDoneCh := echoClient(&echoClientConfig{
+		t:             t,
+		channelID:     channelID,
+		loggerFactory: loggerFactory,
+		log:           log,
+	})
+
 	<-clientDoneCh
+	close(shutDownCh)
+	<-serverDoneCh
+}
+
+func TestConnectionEchoMulti(t *testing.T) {
+	loggerFactory := logging.NewDefaultLoggerFactory()
+	log := loggerFactory.NewLogger("test")
+	channelID := uint16(123)
+
+	shutDownCh, serverDoneCh := echoServer(&echoServerConfig{
+		t:             t,
+		channelID:     channelID,
+		loggerFactory: loggerFactory,
+		log:           log,
+	})
+
+	var clientDoneChs []<-chan struct{}
+
+	for i := 0; i < 4; i++ {
+		clientDoneCh := echoClient(&echoClientConfig{
+			t:             t,
+			id:            i,
+			channelID:     channelID,
+			loggerFactory: loggerFactory,
+			log:           log,
+		})
+		clientDoneChs = append(clientDoneChs, clientDoneCh)
+	}
+
+	for _, clientDoneCh := range clientDoneChs {
+		<-clientDoneCh
+	}
+	close(shutDownCh)
 	<-serverDoneCh
 }

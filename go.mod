@@ -8,4 +8,4 @@ require (
 	github.com/stretchr/testify v1.4.0
 )
 
-replace github.com/sctp => ../../sctp
+replace github.com/pion/sctp => ../../pion/sctp

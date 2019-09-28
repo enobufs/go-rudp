@@ -1,11 +1,7 @@
 package rudp
 
 import (
-	//"fmt"
-	"io"
 	"net"
-	//"strconv"
-	//"time"
 
 	"github.com/pion/logging"
 	"github.com/pion/sctp"
@@ -55,7 +51,7 @@ func Dial(config *DialConfig) (*Client, error) {
 }
 
 // OpenChannel ...
-func (c *Client) OpenChannel(ch uint16) (io.ReadWriteCloser, error) {
+func (c *Client) OpenChannel(ch uint16) (*Channel, error) {
 	c.log.Debugf("opening channel %d", ch)
 	stream, err := c.assoc.OpenStream(ch, sctp.PayloadTypeWebRTCBinary)
 	if err != nil {
@@ -66,4 +62,8 @@ func (c *Client) OpenChannel(ch uint16) (io.ReadWriteCloser, error) {
 		stream: stream,
 		log:    c.log,
 	}, nil
+}
+
+func (c *Client) Close() error {
+	return c.assoc.Close()
 }
