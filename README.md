@@ -8,7 +8,7 @@ Reliable UDP implementation written purely in Go, powered by [Pion's SCTP](https
 ### Features
 * Implements user-space SCTP over UDP
 * TCP like client/server architecture
-* DCEP support
+* DCEP support (TODO)
   - Ordered / unordered
   - Partial reliability
 
@@ -31,3 +31,7 @@ Reliable UDP implementation written purely in Go, powered by [Pion's SCTP](https
 
 ## Examples
 (TODO)
+
+## TODO
+* Implement DCEP
+* Bug: Allocate server resource on CookieEcho (against DDoS)

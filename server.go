@@ -78,6 +78,11 @@ func (s *Server) Close() error {
 	return s.conn.Close()
 }
 
+// LocalAddr ...
+func (s *Server) LocalAddr() net.Addr {
+	return s.conn.LocalAddr()
+}
+
 // RemoteAddr ...
 func (s *Server) RemoteAddr() net.Addr {
 	return s.conn.RemoteAddr()
