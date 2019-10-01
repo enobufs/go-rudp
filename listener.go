@@ -3,6 +3,7 @@ package rudp
 import (
 	"fmt"
 	"net"
+	"runtime/debug"
 	"sync"
 
 	"github.com/pion/logging"
@@ -112,6 +113,7 @@ func (l *Listener) handleInbound(data []byte, from net.Addr) {
 				l.mutex.Lock()
 				defer l.mutex.Unlock()
 				delete(l.serverMap, from.String())
+				l.log.Debugf("removed server at %s", from.String())
 			},
 		})
 		if err != nil {
@@ -126,6 +128,9 @@ func (l *Listener) handleInbound(data []byte, from net.Addr) {
 
 // Accept ...
 func (l *Listener) Accept() (*Server, error) {
+	if l == nil {
+		debug.PrintStack()
+	}
 	svr, ok := <-l.acceptCh
 	if !ok {
 		return nil, fmt.Errorf("listener closed")

@@ -2,6 +2,8 @@ package rudp
 
 import (
 	"net"
+	"sync/atomic"
+	"time"
 
 	"github.com/pion/logging"
 	"github.com/pion/sctp"
@@ -11,6 +13,7 @@ import (
 type Server struct {
 	conn          *serverConn
 	assoc         *sctp.Association
+	closed        atomic.Value // bool
 	onClosed      func()
 	loggerFactory logging.LoggerFactory
 	log           logging.LeveledLogger
@@ -38,6 +41,8 @@ func newServer(config *serverConfig) (*Server, error) {
 		log:           log,
 	}
 
+	s.closed.Store(false)
+
 	go func() {
 		s.log.Debug("handlshake started")
 		var err error
@@ -56,6 +61,9 @@ func newServer(config *serverConfig) (*Server, error) {
 }
 
 func (s *Server) handleInbound(data []byte) {
+	if s.closed.Load().(bool) {
+		return
+	}
 	s.log.Debugf("Server: handleInboud: %d bytes", len(data))
 	s.conn.handleInbound(data)
 }
@@ -75,7 +83,15 @@ func (s *Server) AcceptChannel() (*Channel, error) {
 
 // Close ...
 func (s *Server) Close() error {
-	return s.conn.Close()
+	var err error
+	if !s.closed.Load().(bool) {
+		err = s.conn.Close()
+		s.closed.Store(true)
+		time.AfterFunc(8*time.Second, func() {
+			s.onClosed()
+		})
+	}
+	return err
 }
 
 // LocalAddr ...

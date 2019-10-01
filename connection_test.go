@@ -33,7 +33,10 @@ func echoServer(cfg *echoServerConfig) (chan<- struct{}, <-chan struct{}) {
 		Network:       "udp4",
 		LoggerFactory: cfg.loggerFactory,
 	})
-	assert.NoError(cfg.t, err, "should succeed")
+	if !assert.NoError(cfg.t, err, "should succeed") {
+		close(doneCh)
+		return shutDownCh, doneCh
+	}
 
 	go func() {
 		defer close(doneCh)

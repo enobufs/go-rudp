@@ -3,6 +3,7 @@ package rudp
 import (
 	"io"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/pion/logging"
@@ -12,6 +13,8 @@ type serverConn struct {
 	conn    net.PacketConn
 	remAddr net.Addr
 	readCh  chan []byte
+	closed  bool
+	mutex   sync.RWMutex
 	log     logging.LeveledLogger
 }
 
@@ -44,7 +47,11 @@ func (c *serverConn) Write(b []byte) (n int, err error) {
 }
 
 func (c *serverConn) Close() error {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
 	close(c.readCh)
+	c.closed = true
 	return nil
 }
 
@@ -69,8 +76,15 @@ func (c *serverConn) SetWriteDeadline(t time.Time) error {
 }
 
 func (c *serverConn) handleInbound(data []byte) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	if c.closed {
+		return
+	}
+
 	c.log.Debugf("serverConn: handleInboud: %d bytes", len(data))
 	buf := make([]byte, len(data))
 	copy(buf, data)
-	c.readCh <- buf // possible race with Close()
+	c.readCh <- buf
 }

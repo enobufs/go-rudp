@@ -31,3 +31,23 @@ func (c *Channel) Close() error {
 	c.log.Debugf("closing channel(%d)", c.ID())
 	return c.stream.Close()
 }
+
+// BufferedAmount ...
+func (c *Channel) BufferedAmount() uint64 {
+	return c.stream.BufferedAmount()
+}
+
+// BufferedAmountLowThreshold ...
+func (c *Channel) BufferedAmountLowThreshold() uint64 {
+	return c.stream.BufferedAmountLowThreshold()
+}
+
+// OnBufferedAmountLow ...
+func (c *Channel) OnBufferedAmountLow(f func()) {
+	c.stream.OnBufferedAmountLow(f)
+}
+
+// SetBufferedAmountLowThreshold ...
+func (c *Channel) SetBufferedAmountLowThreshold(th uint64) {
+	c.stream.SetBufferedAmountLowThreshold(th)
+}
