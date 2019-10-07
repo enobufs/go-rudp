@@ -17,8 +17,8 @@ Reliable UDP implementation written purely in Go, powered by [Pion's SCTP](https
 * Makes it easy to create UDP based applications
 
 ### Difference from WebRTC
-* Data Channel only
-* Simple
+* Client/Server (not peer-to-peer)
+* Simple (Data Channel only)
   - No Signaling
   - No ICE
   - No DTLS
@@ -28,9 +28,9 @@ Reliable UDP implementation written purely in Go, powered by [Pion's SCTP](https
 * Best for creating tools
 * Production use is NOT recommended
 
-
 ## Examples
 (TODO)
+> See [sctptest](https://github.com/enobufs/sctptest) for now.
 
 ## TODO
 * Implement DCEP

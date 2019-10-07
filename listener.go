@@ -18,6 +18,7 @@ type ListenConfig struct {
 	Network       string
 	LocalAddr     net.Addr
 	Backlog       int
+	BufferSize    int
 	LoggerFactory logging.LoggerFactory
 }
 
@@ -53,6 +54,17 @@ func Listen(config *ListenConfig) (*Listener, error) {
 	conn, err := net.ListenUDP(config.Network, locAddr)
 	if err != nil {
 		return nil, err
+	}
+	if config.BufferSize > 0 {
+		log.Debugf("setting buffer size to %d\n", config.BufferSize)
+		err = conn.SetReadBuffer(config.BufferSize)
+		if err != nil {
+			return nil, err
+		}
+		err = conn.SetWriteBuffer(config.BufferSize)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	log.Infof("listening on %s", conn.LocalAddr().String())

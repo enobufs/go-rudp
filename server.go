@@ -12,6 +12,7 @@ import (
 // Server ...
 type Server struct {
 	conn          *serverConn
+	bufferSize    int
 	assoc         *sctp.Association
 	closed        atomic.Value // bool
 	onClosed      func()
@@ -22,6 +23,7 @@ type Server struct {
 type serverConfig struct {
 	conn                net.PacketConn
 	remAddr             net.Addr
+	bufferSize          int
 	onHandshakeComplete func()
 	onClosed            func()
 	loggerFactory       logging.LoggerFactory
@@ -36,6 +38,7 @@ func newServer(config *serverConfig) (*Server, error) {
 
 	s := &Server{
 		conn:          svrConn,
+		bufferSize:    config.bufferSize,
 		onClosed:      config.onClosed,
 		loggerFactory: config.loggerFactory,
 		log:           log,
@@ -47,8 +50,9 @@ func newServer(config *serverConfig) (*Server, error) {
 		s.log.Debug("handlshake started")
 		var err error
 		s.assoc, err = sctp.Server(sctp.Config{
-			LoggerFactory: s.loggerFactory,
-			NetConn:       s.conn,
+			LoggerFactory:        s.loggerFactory,
+			MaxReceiveBufferSize: uint32(s.bufferSize),
+			NetConn:              s.conn,
 		})
 		if err != nil {
 			s.log.Error(err.Error())

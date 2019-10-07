@@ -12,6 +12,7 @@ type DialConfig struct {
 	Network       string
 	LocalAddr     *net.UDPAddr
 	RemoteAddr    *net.UDPAddr
+	BufferSize    int
 	LoggerFactory logging.LoggerFactory
 }
 
@@ -31,10 +32,23 @@ func Dial(config *DialConfig) (*Client, error) {
 		return nil, err
 	}
 
+	if config.BufferSize > 0 {
+		log.Debugf("setting buffer size to %d\n", config.BufferSize)
+		err = conn.SetReadBuffer(config.BufferSize)
+		if err != nil {
+			return nil, err
+		}
+		err = conn.SetWriteBuffer(config.BufferSize)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	log.Debug("instantiating SCTP client")
 	assoc, err := sctp.Client(sctp.Config{
-		LoggerFactory: config.LoggerFactory,
-		NetConn:       conn,
+		LoggerFactory:        config.LoggerFactory,
+		MaxReceiveBufferSize: uint32(config.BufferSize), // 0: defaults to 1MB
+		NetConn:              conn,
 	})
 	if err != nil {
 		return nil, err
@@ -64,6 +78,7 @@ func (c *Client) OpenChannel(ch uint16) (*Channel, error) {
 	}, nil
 }
 
+// Close ...
 func (c *Client) Close() error {
 	return c.assoc.Close()
 }
