@@ -26,6 +26,7 @@ type ListenConfig struct {
 type Listener struct {
 	conn          *net.UDPConn
 	serverMap     map[string]*Server
+	bufferSize    int
 	acceptCh      chan *Server
 	closeCh       chan struct{}
 	mutex         sync.RWMutex
@@ -76,6 +77,7 @@ func Listen(config *ListenConfig) (*Listener, error) {
 
 	l := &Listener{
 		conn:          conn,
+		bufferSize:    config.BufferSize,
 		serverMap:     map[string]*Server{},
 		acceptCh:      make(chan *Server, backlog),
 		closeCh:       make(chan struct{}),
@@ -114,6 +116,7 @@ func (l *Listener) handleInbound(data []byte, from net.Addr) {
 		svr, err = newServer(&serverConfig{
 			conn:          l.conn,
 			remAddr:       from,
+			bufferSize:    l.bufferSize,
 			loggerFactory: l.loggerFactory,
 			onHandshakeComplete: func() {
 				select {
