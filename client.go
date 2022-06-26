@@ -3,6 +3,7 @@ package rudp
 import (
 	"net"
 
+	dcep "github.com/pion/datachannel"
 	"github.com/pion/logging"
 	"github.com/pion/sctp"
 )
@@ -18,15 +19,15 @@ type DialConfig struct {
 
 // Client ...
 type Client struct {
-	conn  *net.UDPConn
-	assoc *sctp.Association
-	log   logging.LeveledLogger
+	conn          *net.UDPConn
+	assoc         *sctp.Association
+	loggerFactory logging.LoggerFactory
+	log           logging.LeveledLogger
 }
 
 // Dial ...
 func Dial(config *DialConfig) (*Client, error) {
-	loggerFactory := config.LoggerFactory
-	log := loggerFactory.NewLogger("rudp-c")
+	log := config.LoggerFactory.NewLogger("rudp-c")
 	conn, err := net.DialUDP(config.Network, config.LocalAddr, config.RemoteAddr)
 	if err != nil {
 		return nil, err
@@ -56,26 +57,33 @@ func Dial(config *DialConfig) (*Client, error) {
 
 	log.Debug("creating new client")
 	c := &Client{
-		conn:  conn,
-		assoc: assoc,
-		log:   log,
+		conn:          conn,
+		assoc:         assoc,
+		loggerFactory: config.LoggerFactory,
+		log:           log,
 	}
 
 	return c, nil
 }
 
 // OpenChannel ...
-func (c *Client) OpenChannel(ch uint16) (*Channel, error) {
-	c.log.Debugf("opening channel %d", ch)
-	stream, err := c.assoc.OpenStream(ch, sctp.PayloadTypeWebRTCBinary)
+func (c *Client) OpenChannel(chID uint16, cfg Config) (Channel, error) {
+	c.log.Debugf("opening channel %d", chID)
+
+	dc, err := dcep.Dial(c.assoc, chID, &dcep.Config{
+		ChannelType:          cfg.ChannelType,
+		Negotiated:           cfg.Negotiated,
+		Priority:             cfg.Priority,
+		ReliabilityParameter: cfg.ReliabilityParameter,
+		Label:                cfg.Label,
+		Protocol:             cfg.Protocol,
+		LoggerFactory:        c.loggerFactory,
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	return &Channel{
-		stream: stream,
-		log:    c.log,
-	}, nil
+	return dc, nil
 }
 
 // Close ...

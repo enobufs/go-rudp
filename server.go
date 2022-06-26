@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	dcep "github.com/pion/datachannel"
 	"github.com/pion/logging"
 	"github.com/pion/sctp"
 )
@@ -73,16 +74,10 @@ func (s *Server) handleInbound(data []byte) {
 }
 
 // AcceptChannel ...
-func (s *Server) AcceptChannel() (*Channel, error) {
+func (s *Server) AcceptChannel() (Channel, error) {
 	s.log.Debug("accept stream")
-	stream, err := s.assoc.AcceptStream()
-	if err != nil {
-		return nil, err
-	}
-	return &Channel{
-		stream: stream,
-		log:    s.log,
-	}, nil
+	cfg := &dcep.Config{LoggerFactory: s.loggerFactory}
+	return dcep.Accept(s.assoc, cfg)
 }
 
 // Close ...

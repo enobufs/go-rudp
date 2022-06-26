@@ -1,6 +1,6 @@
 # go-rudp
 
-Reliable UDP implementation written purely in Go, powered by [Pion's SCTP](https://github.com/pion/sctp).
+Reliable UDP implementation written purely in Go, powered by [Pion's SCTP](https://github.com/pion/sctp) and [DCEP](https://github.com/pion/datachannel).
 
 ## Package name: `rudp`
 
@@ -8,7 +8,7 @@ Reliable UDP implementation written purely in Go, powered by [Pion's SCTP](https
 ### Features
 * Implements user-space SCTP over UDP
 * TCP like client/server architecture
-* DCEP support (TODO)
+* DCEP support
   - Ordered / unordered
   - Partial reliability
 
@@ -33,5 +33,4 @@ Reliable UDP implementation written purely in Go, powered by [Pion's SCTP](https
 > See [sctptest](https://github.com/enobufs/sctptest) for now.
 
 ## TODO
-* Implement DCEP
-* Bug: Allocate server resource on CookieEcho (against DDoS)
+* Allocate server resource on CookieEcho (against DDoS)

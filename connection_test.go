@@ -62,7 +62,7 @@ func echoServer(cfg *echoServerConfig) (chan<- struct{}, <-chan struct{}) {
 					serverCh.Close()
 				}()
 
-				assert.Equal(cfg.t, cfg.channelID, serverCh.ID(), "should match")
+				assert.Equal(cfg.t, cfg.channelID, serverCh.StreamIdentifier(), "should match")
 
 				buf := make([]byte, 64*1024)
 				var nReceived int
@@ -108,7 +108,7 @@ func echoClient(cfg *echoClientConfig) <-chan struct{} {
 			assert.NoError(cfg.t, err, "should succeed")
 		}()
 
-		clientCh, err := c.OpenChannel(cfg.channelID)
+		clientCh, err := c.OpenChannel(cfg.channelID, Config{})
 		if !assert.NoError(cfg.t, err, "should succeed") {
 			cfg.t.FailNow()
 		}
