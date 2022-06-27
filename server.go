@@ -76,8 +76,25 @@ func (s *Server) handleInbound(data []byte) {
 // AcceptChannel ...
 func (s *Server) AcceptChannel() (Channel, error) {
 	s.log.Debug("accept stream")
-	cfg := &dcep.Config{LoggerFactory: s.loggerFactory}
-	return dcep.Accept(s.assoc, cfg)
+	cfg := dcep.Config{LoggerFactory: s.loggerFactory}
+	dcepCh, err := dcep.Accept(s.assoc, &cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	dc := &dataChannel{
+		dc: dcepCh,
+		config: Config{
+			ChannelType:          cfg.ChannelType,
+			Negotiated:           cfg.Negotiated,
+			Priority:             cfg.Priority,
+			ReliabilityParameter: cfg.ReliabilityParameter,
+			Label:                cfg.Label,
+			Protocol:             cfg.Protocol,
+		},
+	}
+
+	return dc, nil
 }
 
 // Close ...

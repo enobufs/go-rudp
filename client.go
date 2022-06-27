@@ -70,7 +70,7 @@ func Dial(config *DialConfig) (*Client, error) {
 func (c *Client) OpenChannel(chID uint16, cfg Config) (Channel, error) {
 	c.log.Debugf("opening channel %d", chID)
 
-	dc, err := dcep.Dial(c.assoc, chID, &dcep.Config{
+	dcepCh, err := dcep.Dial(c.assoc, chID, &dcep.Config{
 		ChannelType:          cfg.ChannelType,
 		Negotiated:           cfg.Negotiated,
 		Priority:             cfg.Priority,
@@ -81,6 +81,11 @@ func (c *Client) OpenChannel(chID uint16, cfg Config) (Channel, error) {
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	dc := &dataChannel{
+		dc:     dcepCh,
+		config: cfg,
 	}
 
 	return dc, nil
