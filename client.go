@@ -1,7 +1,9 @@
 package rudp
 
 import (
+	"context"
 	"net"
+	"time"
 
 	dcep "github.com/pion/datachannel"
 	"github.com/pion/logging"
@@ -93,5 +95,7 @@ func (c *Client) OpenChannel(chID uint16, cfg Config) (Channel, error) {
 
 // Close ...
 func (c *Client) Close() error {
-	return c.assoc.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	return c.assoc.Shutdown(ctx)
 }

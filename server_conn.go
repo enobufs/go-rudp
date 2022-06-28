@@ -47,11 +47,7 @@ func (c *serverConn) Write(b []byte) (n int, err error) {
 }
 
 func (c *serverConn) Close() error {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
-
-	close(c.readCh)
-	c.closed = true
+	c.handleInbound(nil)
 	return nil
 }
 
@@ -80,6 +76,12 @@ func (c *serverConn) handleInbound(data []byte) {
 	defer c.mutex.Unlock()
 
 	if c.closed {
+		return
+	}
+
+	if data == nil {
+		close(c.readCh)
+		c.closed = true
 		return
 	}
 
